@@ -1,21 +1,21 @@
 name: Daily Shorts Bot
 
-# Schedule: Runs at 10:00 UTC every day
 on:
   schedule:
-    - cron: '0 10 * * *'
-  workflow_dispatch:
+    - cron: '0 10 * * *' # Runs at 10:00 UTC daily
+  workflow_dispatch:      # Allows you to click "Run Now" manually
 
 jobs:
   build-and-run:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Download the code
+      # 1. Download Code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Free up Disk Space (Crucial for Audio/Video processing)
+      # 2. 🧹 FREE UP DISK SPACE (CRITICAL STEP)
+      # This deletes pre-installed Android/DotNet tools to give you ~10GB extra space.
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -32,7 +32,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick ghostscript
 
-      # 4. Fix ImageMagick Policy
+      # 4. Fix ImageMagick Policy (For text burning)
       - name: Fix ImageMagick Policy
         run: |
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml
@@ -43,13 +43,15 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 6. Install Pip Packages (optimized for CPU)
+      # 6. 📉 INSTALL LIBRARIES (THE "DIET" VERSION)
       - name: Install Pip Packages
         run: |
           pip install --upgrade pip
-          # FORCE CPU VERSION of Torch (Saves ~4GB of space!)
+          
+          # FORCE install the small CPU version of Torch first (saves 4GB!)
           pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-          # Then install the rest from requirements
+          
+          # NOW install the rest. Pip will see Torch is already there and skip the huge download.
           pip install -r requirements.txt
 
       # 7. Create Credentials
@@ -65,9 +67,9 @@ jobs:
         run: |
           python main.py
 
-      # 9. Upload Result (Optional)
+      # 9. Upload Result (For debugging)
       - name: Upload Result
-        if: always() # Runs even if script fails so you can debug
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: final-video
