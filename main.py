@@ -2,7 +2,14 @@ import subprocess
 import time
 import sys
 import os
-
+# --- DEBUG PATHS ---
+print(f"DEBUG: Script is running in: {os.getcwd()}")
+if os.path.exists("token.json"):
+    print(f"DEBUG: ✅ Found 'token.json' in this folder. Size: {os.path.getsize('token.json')} bytes")
+else:
+    print("DEBUG: ❌ 'token.json' NOT FOUND in this folder!")
+    print("DEBUG: Listing all files here:", os.listdir())
+# -------------------
 def run_step(script_name, step_description):
     print(f"\n{'='*60}")
     print(f"🎬 STARTING: {step_description} ({script_name})")
