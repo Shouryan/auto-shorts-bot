@@ -54,11 +54,37 @@ jobs:
           # NOW install the rest. Pip will see Torch is already there and skip the huge download.
           pip install -r requirements.txt
 
-      # 7. Create Credentials
-      - name: Create Credential Files
+      # 7. Create Credentials with DEEP LOGGING
+      - name: Create Credential Files (Debug Mode)
+        env:
+          # Load secrets into env vars to avoid quoting issues
+          CLIENT_SECRET_DATA: ${{ secrets.YOUTUBE_CLIENT_SECRETS }}
+          TOKEN_DATA: ${{ secrets.YOUTUBE_TOKEN_JSON }}
         run: |
-          echo '${{ secrets.YOUTUBE_CLIENT_SECRETS }}' > client_secrets.json
-          echo '${{ secrets.YOUTUBE_TOKEN_JSON }}' > token.json
+          # 1. Write the files
+          echo "$CLIENT_SECRET_DATA" > client_secrets.json
+          echo "$TOKEN_DATA" > token.json
+          
+          # 2. DEBUG: List files to see if they exist
+          echo "📂 LISTING FILES IN CURRENT FOLDER:"
+          ls -lh
+          
+          # 3. DEBUG: Check 'token.json' specifically
+          echo "----------------------------------------"
+          echo "🕵️ CHECKING token.json:"
+          
+          if [ -s token.json ]; then
+            echo "✅ File exists and is not empty."
+            echo "📏 File size: $(wc -c < token.json) bytes"
+            
+            # Print the first 20 characters to verify content (Safe)
+            # This tells us if it starts with valid JSON like {"token":...
+            echo "👀 First 20 chars: $(head -c 20 token.json)"
+          else
+            echo "❌ CRITICAL ERROR: token.json is MISSING or EMPTY (0 bytes)!"
+            echo "   This means the GitHub Secret is empty."
+          fi
+          echo "----------------------------------------"
 
       # 8. Run the Bot
       - name: Run Main Script
