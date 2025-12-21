@@ -1,0 +1,15 @@
+google-generativeai
+edge-tts
+moviepy
+openai-whisper
+feedparser
+google-auth-oauthlib
+google-api-python-client
+pillow
+requests
+python-dotenv
+imageio==2.31.1
+imageio-ffmpeg>=0.4.2
+decorator>=4.0.2
+tqdm
+numpy

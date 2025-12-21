@@ -1,0 +1,10 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+venv_stable/
+venv/
+env/
+ENV/
+.venv/
+.env
+__pycache__/
+step4_transcribe.py
+Project_Tracker.md
