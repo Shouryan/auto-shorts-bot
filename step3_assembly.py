@@ -55,7 +55,7 @@ def create_short(background_path, audio_path, image_path, output_path):
     print("Done!")
 
 if __name__ == "__main__":
-    BACKGROUND = "background_small.mp4"
+    BACKGROUND = "background.mp4"
     AUDIO = "voiceover.mp3"   
     IMAGE = "topic_image.png"  
     OUTPUT = "final_short_overlay.mp4" # This file will be used by Step 5
