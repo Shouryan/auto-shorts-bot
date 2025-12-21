@@ -15,7 +15,7 @@ try:
     # --------------------
 
     print("DEBUG: Importing MoviePy (This is usually where it crashes)...")
-    from moviepy import VideoFileClip, AudioFileClip, ImageClip, CompositeVideoClip
+    from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, CompositeVideoClip
     print("DEBUG: MoviePy imported successfully!")
 
 except Exception as e:
