@@ -4,7 +4,6 @@ name: Daily Shorts Bot
 on:
   schedule:
     - cron: '0 10 * * *'
-  # Allows you to click "Run Now" button for testing
   workflow_dispatch:
 
 jobs:
@@ -16,46 +15,59 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Install System Tools (FFmpeg & ImageMagick)
+      # 2. Free up Disk Space (Crucial for Audio/Video processing)
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      # 3. Install System Tools
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick ghostscript
 
-      # 3. Modify ImageMagick Policy (Fix for text burning on Linux)
+      # 4. Fix ImageMagick Policy
       - name: Fix ImageMagick Policy
         run: |
-          # Allows ImageMagick to read/write text (often blocked by default security)
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml
 
-      # 4. Set up Python
+      # 5. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10' # Stable version
+          python-version: '3.10'
 
-      # 5. Install Python Libraries
+      # 6. Install Pip Packages (optimized for CPU)
       - name: Install Pip Packages
         run: |
           pip install --upgrade pip
-          pip install google-generativeai edge-tts moviepy openai-whisper feedparser google-auth-oauthlib google-api-python-client pillow requests
+          # FORCE CPU VERSION of Torch (Saves ~4GB of space!)
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+          # Then install the rest from requirements
+          pip install -r requirements.txt
 
-      # 6. Recreate Sensitive Files from Secrets
+      # 7. Create Credentials
       - name: Create Credential Files
         run: |
           echo '${{ secrets.YOUTUBE_CLIENT_SECRETS }}' > client_secrets.json
           echo '${{ secrets.YOUTUBE_TOKEN_JSON }}' > token.json
-        # Note: Single quotes '' are crucial here to handle JSON format!
 
-      # 7. Run the Bot
+      # 8. Run the Bot
       - name: Run Main Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python main.py
 
-      # 8. (Optional) Upload the Video as an Artifact so you can see it
+      # 9. Upload Result (Optional)
       - name: Upload Result
+        if: always() # Runs even if script fails so you can debug
         uses: actions/upload-artifact@v4
         with:
           name: final-video
