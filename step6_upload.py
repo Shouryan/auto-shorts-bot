@@ -1,54 +1,48 @@
 import os
+import sys
 import googleapiclient.discovery
-import googleapiclient.errors
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
 
-# PERMISSIONS
+# SCOPES must match what you requested in Step 1
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 def authenticate():
-    print("--- Authenticating with YouTube ---")
-    creds = None
+    print("--- Authenticating with YouTube (Server Mode) ---")
     
-    # 1. Load from file
-    if os.path.exists("token.json"):
-        print("   Found token.json. Verifying validity...")
-        try:
-            creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-        except Exception as e:
-            print(f"   ⚠️ Error reading token.json: {e}")
-            creds = None
+    # 1. Load the Token File
+    if not os.path.exists("token.json"):
+        print("❌ CRITICAL ERROR: 'token.json' not found.")
+        print("   On GitHub, this means the 'Create Credentials' step failed.")
+        sys.exit(1)
 
-    # 2. Check Validity
+    try:
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    except Exception as e:
+        print(f"❌ JSON ERROR: Could not read token.json. {e}")
+        sys.exit(1)
+
+    # 2. Check Validity & Refresh if needed
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            print("   Token is expired. Attempting silent refresh...")
+            print("   ⏳ Token is expired. Refreshing now...")
             try:
                 creds.refresh(Request())
-                print("   ✅ Refresh successful!")
+                print("   ✅ Token refreshed successfully!")
             except Exception as e:
-                print(f"   ❌ Refresh FAILED: {e}")
-                print("   The 'refresh_token' might be revoked or invalid.")
-                creds = None
+                print(f"   ❌ REFRESH FAILED: {e}")
+                print("   The 'refresh_token' is invalid or revoked.")
+                sys.exit(1)
         else:
-            print("   Token is missing or invalid.")
+            print("   ❌ AUTH ERROR: Token is invalid and has no refresh_token.")
+            print("   You must generate a new 'token.json' locally with 'access_type=offline'.")
+            sys.exit(1)
 
-    # 3. IF STILL NO CREDS -> FAIL (Don't open browser on Server)
-    if not creds or not creds.valid:
-        print("\n❌ CRITICAL AUTH ERROR:")
-        print("   We do not have valid credentials, and we cannot open a browser on GitHub Actions.")
-        print("   ACTION REQUIRED: Regenerate your 'token.json' locally and update GitHub Secrets.")
-        # Raise error to stop the bot
-        raise RuntimeError("Authentication Failed: No valid token available.")
-    
-    # 4. Build Service
-    print("   ✅ Authentication Complete. Building YouTube Service...")
+    print("   ✅ Authentication Valid. Building Service...")
     return googleapiclient.discovery.build("youtube", "v3", credentials=creds)
 
-def upload_video(file_path, title="Automated Short", description="Created by AI"):
+def upload_video(file_path, title="Daily AI Short", description="#shorts"):
     youtube = authenticate()
     
     print(f"--- Uploading: {file_path} ---")
@@ -57,11 +51,11 @@ def upload_video(file_path, title="Automated Short", description="Created by AI"
         "snippet": {
             "title": title,
             "description": description,
-            "tags": ["shorts", "ai", "automation"],
-            "categoryId": "22" # People & Blogs
+            "tags": ["shorts", "ai"],
+            "categoryId": "22"
         },
         "status": {
-            "privacyStatus": "private", # Always start private!
+            "privacyStatus": "private", 
             "selfDeclaredMadeForKids": False
         }
     }
@@ -78,15 +72,17 @@ def upload_video(file_path, title="Automated Short", description="Created by AI"
     while response is None:
         status, response = request.next_chunk()
         if status:
-            print(f"   Uploaded {int(status.progress() * 100)}%...")
+            print(f"   Uploading... {int(status.progress() * 100)}%")
             
     print(f"✅ UPLOAD SUCCESS! Video ID: {response.get('id')}")
 
 if __name__ == "__main__":
-    # Ensure this matches your actual video filename
+    # Ensure this filename matches your previous steps
     VIDEO_FILE = "final_short_automated.mp4" 
     
     if os.path.exists(VIDEO_FILE):
-        upload_video(VIDEO_FILE, title="Daily AI Short", description="#shorts #ai")
+        upload_video(VIDEO_FILE)
     else:
         print(f"❌ Error: Video file '{VIDEO_FILE}' not found.")
+        # Don't crash, just exit cleanly so logs are readable
+        sys.exit(1)
