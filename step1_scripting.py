@@ -15,7 +15,7 @@ def generate_content():
     genai.configure(api_key=api_key)
     
     # Use the smart, high-limit model
-    MODEL_NAME = "gemini-1.5-flash" 
+    MODEL_NAME = "gemini-2.5-flash-lite" 
     
     # --- 2. DEFINE YOUR HIGH-CPM NICHES ---
     niches = [
