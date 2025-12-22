@@ -1,75 +1,83 @@
-print("DEBUG: Step 3 script has started execution...")
+import os
 import sys
 import traceback
 
-# Wrap imports in a try/except to catch "ImportError" crashes
-try:
-    print("DEBUG: Importing OS and System libraries...")
-    import os
-    
-    # --- PILLOW PATCH ---
-    print("DEBUG: Patching Pillow...")
-    import PIL.Image
-    if not hasattr(PIL.Image, 'ANTIALIAS'):
-        PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
-    # --------------------
+# --- PILLOW PATCH ---
+import PIL.Image
+if not hasattr(PIL.Image, 'ANTIALIAS'):
+    PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
+# --------------------
 
-    print("DEBUG: Importing MoviePy (This is usually where it crashes)...")
-    from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, CompositeVideoClip
-    print("DEBUG: MoviePy imported successfully!")
-
-except Exception as e:
-    print("\n❌ CRITICAL IMPORT ERROR:")
-    print(traceback.format_exc())
-    sys.exit(1)
+from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, CompositeVideoClip
 
 def create_short(background_path, audio_path, image_path, output_path):
     print(f"\n{'='*40}")
-    print(f"🎬 STEP 3 MAIN FUNCTION: Assembly")
+    print(f"🎬 STEP 3: HD Assembly (1080x1920)")
     print(f"{'='*40}")
 
-    # 1. Validate Files
-    files = { "Audio": audio_path, "Background": background_path, "Image": image_path }
-    for name, path in files.items():
-        exists = os.path.exists(path)
-        print(f"  [{'✅' if exists else '❌'}] {name}: {path}")
-        if not exists:
-            print(f"    -> ERROR: File not found!")
-            sys.exit(1)
-
     try:
-        # 2. Processing
-        print("DEBUG: Loading Audio Clip...")
+        # 1. Load Audio
         audio_clip = AudioFileClip(audio_path)
+        duration = audio_clip.duration
         
-        print("DEBUG: Loading Video Clip...")
+        # 2. Load & Prepare Background (HD FORCE)
+        print(f"🎥 Processing Video: {background_path}")
         video_clip = VideoFileClip(background_path)
         
-        # Trim
-        video_clip = video_clip.subclip(0, audio_clip.duration)
+        # Loop video if it's shorter than audio
+        if video_clip.duration < duration:
+            print("   - Video too short, looping it...")
+            video_clip = video_clip.loop(duration=duration)
         
-        # Crop
-        w, h = video_clip.size
-        target_ratio = 9/16
-        if w/h > target_ratio:
-            new_width = int(h * target_ratio)
-            video_clip = video_clip.crop(x1=w/2 - new_width/2, x2=w/2 + new_width/2, y1=0, y2=h)
-            
-        print("DEBUG: Loading Image...")
-        image_clip = ImageClip(image_path).resize(width=video_clip.w).set_position(("center", "top")).set_duration(audio_clip.duration)
+        video_clip = video_clip.subclip(0, duration)
+        
+        # --- HD RESIZING LOGIC ---
+        # We want 1080x1920. We resize by HEIGHT first to ensure coverage.
+        target_h = 1920
+        target_w = 1080
+        
+        # Resize height to 1920 (width will scale automatically)
+        video_clip = video_clip.resize(height=target_h)
+        
+        # Center Crop to 1080 width
+        if video_clip.w > target_w:
+            video_clip = video_clip.crop(x1=video_clip.w/2 - target_w/2, 
+                                         x2=video_clip.w/2 + target_w/2, 
+                                         width=target_w, height=target_h)
+        # -------------------------
 
-        print("DEBUG: Compositing...")
-        final = CompositeVideoClip([video_clip, image_clip]).set_audio(audio_clip)
+        # 3. Load & Position Image
+        print(f"🖼️ Processing Image overlay...")
+        image_clip = ImageClip(image_path)
+        
+        # Resize image to 90% of screen width for nice padding
+        image_clip = image_clip.resize(width=target_w * 0.9)
+        image_clip = image_clip.set_position(("center", "center")) # Put it right in the middle
+        image_clip = image_clip.set_duration(duration)
 
-        print(f"DEBUG: Rendering to {output_path}...")
-        final.write_videofile(output_path, codec="libx264", audio_codec="aac", fps=30, preset="ultrafast", logger=None)
-        print("✅ SUCCESS!")
+        # 4. Composite
+        print("🏗️ Compositing layers...")
+        final = CompositeVideoClip([video_clip, image_clip])
+        final = final.set_audio(audio_clip)
+
+        # 5. Render in HD
+        print(f"💾 Rendering HD to {output_path}...")
+        final.write_videofile(
+            output_path, 
+            codec="libx264", 
+            audio_codec="aac", 
+            fps=30, 
+            preset="medium",   # 'medium' gives better quality than 'ultrafast'
+            bitrate="5000k",   # High bitrate for HD
+            threads=4
+        )
+        print("✅ HD RENDER COMPLETE!")
 
     except Exception as e:
-        print("\n❌ PROCESSING ERROR:")
+        print("\n❌ CRITICAL ERROR IN ASSEMBLY:")
         print(traceback.format_exc())
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Ensure arguments match what Step 1 & 2 produce
-    create_short("background.mp4", "voiceover.mp3", "topic_image.png", "final_short_overlay.mp4")
+    # Ensure these names match your files
+    create_short("background.mp4", "voiceover.mp3", "topic_image.png", "final_short_automated.mp4")
