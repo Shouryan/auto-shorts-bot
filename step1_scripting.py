@@ -30,7 +30,7 @@ def get_latest_sports_news():
 
 # 3. Generate Script AND Image Prompt
 def generate_content(news_headline):
-    model = genai.GenerativeModel('gemini-2.5-flash') 
+    model = genai.GenerativeModel('gemini-2.0-flash') 
     
     # We ask for TWO things: The script, and a visual description
     prompt = f"""
