@@ -1,113 +1,86 @@
-import feedparser
-import google.generativeai as genai
 import os
-import requests
-import urllib.parse
-from dotenv import load_dotenv
+import random
+import google.generativeai as genai
+from datetime import datetime
 
-# 1. Load API Key
-load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
+def generate_content():
+    print("--- Step 1: Generating High-CPM Niche Script ---")
+    
+    # 1. Setup API
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("❌ Error: GEMINI_API_KEY is missing.")
+        return
 
-if not api_key:
-    print("❌ Error: API Key not found.")
-    exit()
+    genai.configure(api_key=api_key)
+    
+    # Use the smart, high-limit model
+    MODEL_NAME = "gemini-1.5-flash" 
+    
+    # --- 2. DEFINE YOUR HIGH-CPM NICHES ---
+    niches = [
+        {
+            "category": "Tech Nostalgia",
+            "prompt": "Write a viral YouTube Short script about the history of a classic tech product (like Java, Windows XP, the first iPhone, or Nokia 3310). Focus on a surprising fact or its rise and fall."
+        },
+        {
+            "category": "Failed Tech",
+            "prompt": "Write a script about a famous failed tech product (like Google Glass, Segway, or Quibi). Explain ONE specific reason why it failed in a dramatic way."
+        },
+        {
+            "category": "Grammar Tips",
+            "prompt": "Explain a common grammar mistake people make (like 'Your vs You're', 'Could care less', or 'Literally'). Be snarky and educational."
+        },
+        {
+            "category": "Explained in 60s",
+            "prompt": "Explain a complex topic (like 5G, Blockchain, or HTTP) simply in under 60 seconds. Use an analogy."
+        }
+    ]
+    
+    # Pick one category at random for today
+    selected_niche = random.choice(niches)
+    print(f"🎯 Today's Niche: {selected_niche['category']}")
 
-genai.configure(api_key=api_key)
-
-# 2. Function to get Sports News
-def get_latest_sports_news():
-    rss_url = "https://news.google.com/rss/search?q=sports+when:1d&hl=en-US&gl=US&ceid=US:en"
-    print(f"🔍 Fetching news from: {rss_url}...")
-    feed = feedparser.parse(rss_url)
-    
-    if len(feed.entries) > 0:
-        top_story = feed.entries[0]
-        print(f"✅ Found Top Story: {top_story.title}")
-        return top_story.title, top_story.link
-    else:
-        return None, None
-
-# 3. Generate Script AND Image Prompt
-def generate_content(news_headline):
-    model = genai.GenerativeModel('gemini-2.5-flash-lite') 
-    
-    # We ask for TWO things: The script, and a visual description
-    prompt = f"""
-    You are a sports content generator.
-    Headline: "{news_headline}"
-    
-    OUTPUT FORMAT (Strictly separate with '|||'):
-    [Viral Script]|||[Image Prompt]
-    
-    1. Viral Script:
-       - 30-second high-energy script for Gen Z.
-       - Detect the sport (NBA, Cricket, Football, WWE, Golf,Tennis etc).
-       - Start with a loud hook.
-       - End with a question.
-       - Max 60 words. No intro/outro labels.
-    
-    2. Image Prompt:
-       - A short, vivid description of an image to represent this news.
-       - High quality, 8k, hyper-realistic, dramatic lighting.
-       - Example: "Cristiano Ronaldo looking shocked on a soccer field, dramatic stadium lighting, hyper-realistic, 8k"
-    """
-    
-    print("🧠 Generating script & image prompt with Gemini...")
-    response = model.generate_content(prompt)
-    
-    if "|||" in response.text:
-        script_text, image_prompt = response.text.split("|||")
-        return script_text.strip(), image_prompt.strip()
-    else:
-        # Fallback if AI messes up formatting
-        return response.text.strip(), f"Sports stadium scene related to {news_headline}, hyper-realistic"
-
-# 4. Generate the actual Image (Free Method)
-def download_image(prompt, filename="topic_image.png"):
-    print(f"🎨 Generating image for: '{prompt}'...")
-    
-    # URL Encode the prompt
-    encoded_prompt = urllib.parse.quote(prompt)
-    
-    # Use Pollinations.ai (Free, no key needed)
-    # We request a vertical-ish or square aspect ratio
-    image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1080&height=1080&model=flux"
-    
     try:
-        response = requests.get(image_url)
-        if response.status_code == 200:
-            with open(filename, "wb") as f:
-                f.write(response.content)
-            print(f"🖼️ Image saved to '{filename}'")
-        else:
-            print("❌ Failed to download image.")
-    except Exception as e:
-        print(f"❌ Error downloading image: {e}")
+        model = genai.GenerativeModel(MODEL_NAME)
+        
+        # 3. Construct the Master Prompt
+        full_prompt = f"""
+        You are a YouTube Shorts scriptwriter for a high-tech educational channel.
+        
+        Task: {selected_niche['prompt']}
+        
+        Rules:
+        1. Length: STRICTLY under 130 words.
+        2. Hook: Start with a question or a bold statement.
+        3. Style: Fast-paced, informative, no fluff.
+        4. Format: Return ONLY the script text. Do not add "Title:" or "Scene 1".
+        
+        Crucial: At the very end, on a new line, write an image generation prompt for this specific topic starting with "IMAGE_PROMPT:".
+        The image prompt should be: "A high quality, cinematic, 8k illustration of [Topic], cyberpunk or minimal style".
+        """
+        
+        print(f"🤖 Asking {MODEL_NAME} to write script...")
+        response = model.generate_content(full_prompt)
+        text_output = response.text
+        
+        print("✅ Script Generated!")
 
-# --- Main Execution ---
-if __name__ == "__main__":
-    headline, link = get_latest_sports_news()
+    except Exception as e:
+        print(f"\n⚠️ API ERROR: {e}")
+        # Fallback script just in case
+        text_output = (
+            "Did you know the first computer bug was an actual moth? "
+            "In 1947, Grace Hopper found a moth stuck in a relay of the Mark II computer. "
+            "That is why we call coding errors 'bugs' today! "
+            "\nIMAGE_PROMPT: A vintage computer schematic with a moth insect inside, retro tech style"
+        )
+
+    # 4. Save to File
+    with open("daily_script.txt", "w", encoding="utf-8") as f:
+        f.write(text_output)
     
-    if headline:
-        # 1. Generate Text Content
-        script, image_description = generate_content(headline)
-        
-        print("\n" + "="*40)
-        print("📜 SCRIPT:")
-        print(script)
-        print("-" * 20)
-        print("🎨 IMAGE PROMPT:")
-        print(image_description)
-        print("="*40)
-        
-        # 2. Save Script
-        with open("daily_script.txt", "w", encoding="utf-8") as f:
-            f.write(script)
-        print("💾 Script saved to 'daily_script.txt'")
-        
-        # 3. Generate Image
-        download_image(image_description, "topic_image.png")
-        
-    else:
-        print("❌ No news found today.")
+    print("💾 Saved to daily_script.txt")
+
+if __name__ == "__main__":
+    generate_content()
