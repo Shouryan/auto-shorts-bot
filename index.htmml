@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Copilot Usage Insights &amp; Agent Adoption Platform — Design Document</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2328;
+    --muted: #57606a;
+    --border: #d0d7de;
+    --accent: #0969da;
+    --code-bg: #f6f8fa;
+    --table-alt: #f6f8fa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #9198a1;
+      --border: #30363d;
+      --accent: #4493f8;
+      --code-bg: #161b22;
+      --table-alt: #161b22;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .layout { display: flex; align-items: flex-start; }
+  nav.toc {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    width: 280px;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 16px;
+    border-right: 1px solid var(--border);
+    font-size: 14px;
+  }
+  nav.toc h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  nav.toc a { display: block; color: var(--fg); text-decoration: none; padding: 4px 8px; border-radius: 6px; }
+  nav.toc a:hover { background: var(--code-bg); color: var(--accent); }
+  main {
+    flex: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 40px 120px;
+    min-width: 0;
+  }
+  h1 { font-size: 30px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+  h2 { font-size: 23px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-top: 40px; }
+  h3 { font-size: 18px; margin-top: 28px; }
+  a { color: var(--accent); }
+  code { background: var(--code-bg); padding: .15em .4em; border-radius: 6px; font-size: 85%;
+         font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); }
+  tr:nth-child(even) td { background: var(--table-alt); }
+  blockquote { margin: 16px 0; padding: 8px 16px; border-left: 4px solid var(--accent);
+               background: var(--code-bg); color: var(--muted); border-radius: 0 6px 6px 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .diagram {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    overflow-x: auto;
+    text-align: center;
+  }
+  .badge { display: inline-block; background: var(--accent); color: #fff; font-size: 12px;
+           padding: 2px 10px; border-radius: 999px; margin-right: 6px; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+  <h2>Contents</h2>
+  <a href="#summary">1. Executive Summary</a>
+  <a href="#mapping">2. Problem Statement Mapping</a>
+  <a href="#decisions">3. Key Decisions &amp; Constraints</a>
+  <a href="#sources">4. Data Sources</a>
+  <a href="#metrics">5. Metrics &amp; Insights</a>
+  <a href="#context">6. System Context (C4 L1)</a>
+  <a href="#hld">7. High-Level Architecture (C4 L2)</a>
+  <a href="#lld">8. Low-Level Design (C4 L3)</a>
+  <a href="#datamodel">9. Data Model</a>
+  <a href="#sequence">10. Ingestion Sequence</a>
+  <a href="#survey">11. Feedback Survey Flow</a>
+  <a href="#consent">12. Consent &amp; Identity Lifecycle</a>
+  <a href="#dashboards">13. Dashboards</a>
+  <a href="#governance">14. Privacy &amp; Governance</a>
+  <a href="#risks">15. Risks &amp; Open Questions</a>
+  <a href="#glossary">16. Glossary</a>
+</nav>
+
+<main>
+<h1>Copilot Usage Insights &amp; Agent Adoption Platform — Design Document</h1>
+<p class="meta">
+  <span class="badge">POC</span>
+  <strong>Last updated:</strong> 2026-08-12 &nbsp;·&nbsp;
+  <strong>Owner:</strong> <em>TBD</em> &nbsp;·&nbsp;
+  <strong>Source of truth:</strong> prompt.md · problem-statement.txt
+</p>
+
+<hr />
+
+<h2 id="summary">1. Executive Summary</h2>
+<p>Adoption is one of the biggest barriers to realizing AI value. Leaders lack visibility into <strong>who</strong> is using AI agents, <strong>where</strong> adoption is lagging, and <strong>which</strong> interventions would increase value realization. Employees are often unaware of tools that could improve their productivity.</p>
+<p>This platform delivers a <strong>generic, reusable, privacy-preserving</strong> mechanism that any AI agent repository can adopt to capture:</p>
+<ol>
+  <li><strong>Adoption &amp; usage</strong> — derived from local VS Code Copilot debug logs, keyed to the user's <code>ACF2 ID</code>.</li>
+  <li><strong>Feedback signals</strong> — a delayed survey (default 14 days after first use) capturing sentiment, time saved, and barriers.</li>
+  <li><strong>Cost &amp; efficiency insights</strong> — token efficiency, estimated cost, and <strong>intelligence-based token wastage</strong> (right-sizing model choice to task complexity).</li>
+</ol>
+<p>All data lands in the organization's <strong>AWS workload account</strong> (the durable system of record for this POC) and powers an <strong>admin dashboard</strong> (org-wide adoption, cost, wastage, token-award eligibility) and a <strong>user dashboard</strong> (private, self-service coaching).</p>
+<blockquote><strong>Non-goals (POC):</strong> no Copilot API key usage, no central storage of prompts/responses/source code, no cross-device reconciliation, and no disaster-recovery fallback store.</blockquote>
+
+<hr />
+
+<h2 id="mapping">2. Problem Statement Mapping</h2>
+<table>
+  <thead><tr><th>Problem-statement outcome</th><th>How this design satisfies it</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Outcome 1</strong> — Reusable mechanism to store &amp; track agent adoption/usage → usage dashboard</td><td>Extension parses local debug logs, emits minimized telemetry to AWS; <code>fact_adoption</code> + aggregates power the admin usage dashboard.</td></tr>
+    <tr><td><strong>Outcome 2</strong> — Reusable mechanism to store &amp; track feedback → feedback dashboard</td><td>Delayed survey writes <code>fact_feedback</code>; feedback panels join to usage in the admin dashboard.</td></tr>
+    <tr><td>Capture ACF2 ID + associated data (BG, Division)</td><td><code>dim_user</code> keyed by unique <code>ACF2 ID</code>; org attributes (org/team/role/BG/Division/region) sourced from <strong>Microsoft Teams</strong>.</td></tr>
+    <tr><td>Target change-management &amp; notify of new releases</td><td>Admin dashboard segments adoption/dormancy by team/agent to target interventions and surface underused tools.</td></tr>
+    <tr><td>Generic / addable to any agent repo</td><td>Packaged as a universal VS Code extension + append-only ingestion contract; <code>dim_agent</code> distinguishes each agent/skill.</td></tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="decisions">3. Key Design Decisions &amp; Constraints</h2>
+<table>
+  <thead><tr><th>#</th><th>Decision</th><th>Rationale</th></tr></thead>
+  <tbody>
+    <tr><td>D1</td><td><strong>AWS workload account</strong> is the durable system of record.</td><td>Organization-approved storage; least-privilege, encrypted, append-only, idempotent.</td></tr>
+    <tr><td>D2</td><td><strong>No memory/DR fallback</strong> for the POC.</td><td>Scope reduction; local queue + bounded-backoff retry is sufficient to demonstrate value.</td></tr>
+    <tr><td>D3</td><td><strong>One user = one device.</strong> <code>ACF2 ID</code> is the identity key.</td><td>ACF2 IDs are already unique with an existing ACF2↔username map; no cross-device reconciliation needed.</td></tr>
+    <tr><td>D4</td><td><strong>Org hierarchy comes from Microsoft Teams.</strong></td><td>Enables admin filtering by org/team/role/BG/Division without inspecting prompts.</td></tr>
+    <tr><td>D5</td><td><strong>Only local telemetry already written by VS Code</strong> is used.</td><td>No Copilot API key; no new data collection surface.</td></tr>
+    <tr><td>D6</td><td><strong>Privacy by default:</strong> exclude prompt/response/code/paths/args.</td><td>Only numeric + metadata fields leave the device.</td></tr>
+    <tr><td>D7</td><td><strong>All cost/wastage are estimates/heuristics</strong>, clearly labeled.</td><td>Avoids misuse as performance judgment; supports coaching, not discipline.</td></tr>
+    <tr><td>D8</td><td><strong>Explicit consent lifecycle</strong> keyed by <code>ACF2 ID</code>.</td><td>Opt-in/opt-out, withdrawal, erasure, and audited re-identification.</td></tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="sources">4. Data Sources</h2>
+<p>Discovered locally under the platform-resolved VS Code user-data directory:</p>
+<pre><code>workspaceStorage/*/GitHub.copilot-chat/debug-logs/*/main.jsonl   # events
+workspaceStorage/*/GitHub.copilot-chat/debug-logs/*/models.json  # pricing &amp; capability</code></pre>
+<ul>
+  <li><strong><code>llm_request</code> events</strong> → <code>model</code>, <code>inputTokens</code>, <code>cachedTokens</code>, <code>outputTokens</code>, <code>ttft</code>, <code>dur</code>, <code>responseId</code>, session ID, timestamp.</li>
+  <li><strong>Agent debug-flow events</strong> → event type/timestamp, agent ID/name, skill ID/name, extension version, tool category/name, status, duration, retry/error category, edit/file-change count, workflow/session completion state.</li>
+  <li><strong><code>models.json</code></strong> → model capability, tier, category, context limit, input/cache/output prices.</li>
+</ul>
+<p>Log format and availability are treated as <strong>implementation-dependent</strong>; missing/unsupported logs are detected gracefully and reported via the data-quality panel.</p>
+
+<hr />
+
+<h2 id="metrics">5. Metrics &amp; Insights</h2>
+<h3>5.1 Estimated cost</h3>
+<div class="katex-render" data-expr="\text{estimated cost} = \frac{(input - cached) \times inputPrice + cached \times cachePrice + output \times outputPrice}{1{,}000{,}000}"></div>
+
+<h3>5.2 Intelligence-based token wastage</h3>
+<p>Each turn is classified into a <strong>task-complexity tier</strong> using only privacy-safe signals (session depth, tool-call count/category, files affected, changed-file count, context size, multi-step behavior, retry/error counts — <strong>never prompt text</strong>). Each tier maps to a reference model of appropriate intelligence (e.g. <code>Claude Opus 4.8</code> for the hardest tasks; low-cost/<code>Auto</code> for simple/repetitive tasks).</p>
+<div class="katex-render" data-expr="\text{token wastage} = \max\left(0,\ \text{actual tokens} \times \text{actualModelPrice} - \text{expected tokens} \times \text{recommendedModelPrice}\right)"></div>
+<p>Each turn is labeled <code>over_provisioned</code>, <code>right_sized</code>, or <code>under_provisioned</code>.</p>
+
+<h3>5.3 Insight catalog</h3>
+<table>
+  <thead><tr><th>#</th><th>Insight</th><th>Notes / caveat</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Token efficiency (I/O ratio, cache-hit rate, non-cached context growth, cost, high-input/low-output turns)</td><td>Observed telemetry.</td></tr>
+    <tr><td>2</td><td>Wastage signals (expensive turns w/o outcome, repeats, context expansion)</td><td>Heuristic; never "wasteful" as fact.</td></tr>
+    <tr><td>3</td><td>Model recommendations (vs. compatible lower-cost models)</td><td>Alternative latency/quality are counterfactual estimates.</td></tr>
+    <tr><td>4</td><td>Model-need classification (<code>likely justified</code> / <code>review opportunity</code> / <code>insufficient evidence</code>)</td><td>Never misconduct or performance judgment.</td></tr>
+    <tr><td>5</td><td>Organizational classification (<code>organizational</code> vs <code>personal_or_unknown</code>)</td><td>Allow-list on Git remote only; no prompt inspection.</td></tr>
+    <tr><td>6</td><td>Agent-flow effectiveness (request→tool/edit/validation/completion rates, durations)</td><td>Workflow signal, not productivity proof.</td></tr>
+    <tr><td>7</td><td>Friction &amp; recovery signals (retry loops, validation-fail→recover, interruptions)</td><td>Diagnostic opportunity only.</td></tr>
+    <tr><td>8</td><td>Outcome correlation (cost/latency/cache/tier vs. observed outcomes)</td><td>Correlation ≠ causal value or time saved.</td></tr>
+    <tr><td>9</td><td>Intelligence-based token wastage (§5.2)</td><td>Configurable, counterfactual; not misuse proof.</td></tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="context">6. System Context (C4 Level 1)</h2>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+    Dev([Developer]) -->|uses agents| VS[VS Code + Copilot]
+    Admin([Leader / Admin]) -->|reviews| ADMIN[Admin Dashboard]
+    Dev -->|self-service| USER[User Dashboard]
+
+    subgraph Device["Developer Machine (1 user = 1 device)"]
+        VS --> EXT[Usage-Insights Extension]
+    end
+
+    subgraph Cloud["AWS Workload Account"]
+        API[Ingestion API]
+        STORE[(Analytics Store)]
+        ADMIN
+        USER
+    end
+
+    Teams[(Microsoft Teams<br/>org hierarchy)] -->|scheduled sync| STORE
+    ACF2[(ACF2 map)] --> STORE
+    EXT -->|minimized telemetry over HTTPS| API --> STORE
+    STORE --> ADMIN
+    STORE --> USER
+</pre></div>
+
+<hr />
+
+<h2 id="hld">7. High-Level Architecture (C4 Level 2)</h2>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+    subgraph Dev["Developer Machine (1 user = 1 device)"]
+        VSC[VS Code + Copilot]
+        LOGS[(debug-logs/*.jsonl<br/>+ models.json)]
+        EXT[Usage-Insights Extension<br/>scan / minimize / classify / queue]
+        SURVEY[Feedback Survey<br/>default 14 days after first use]
+        VSC --> LOGS --> EXT
+        VSC --> SURVEY
+    end
+
+    subgraph MS["Microsoft Teams"]
+        ORG[Org hierarchy<br/>org / team / role / BG / Division]
+    end
+
+    subgraph AWS["AWS Workload Account (system of record)"]
+        API[Ingestion API<br/>HTTPS / write-only cred / idempotent]
+        RAW[(Landing / raw events)]
+        XFORM[Enrichment & Aggregation<br/>ACF2 join / org join / tier / wastage / rollups]
+        STORE[(Curated model:<br/>dims + facts + views)]
+        API --> RAW --> XFORM --> STORE
+    end
+
+    subgraph Dash["Dashboards"]
+        ADMIN[Admin Dashboard<br/>adoption / feedback / cost / wastage / eligibility]
+        USER[User Dashboard<br/>personal usage / coaching]
+    end
+
+    EXT -->|batched minimized events| API
+    SURVEY -->|structured responses| API
+    ORG -->|scheduled sync| XFORM
+    ACF2[(ACF2 map)] --> XFORM
+    STORE --> ADMIN
+    STORE --> USER
+</pre></div>
+
+<hr />
+
+<h2 id="lld">8. Low-Level Design (C4 Level 3)</h2>
+<div class="diagram"><pre class="mermaid">
+flowchart TB
+    subgraph Pipe["Extension Pipeline"]
+        SCAN[Watcher / incremental scan<br/>persisted byte offsets]
+        P1[Parse llm_request<br/>model, tokens, cached, ttft, dur, responseId]
+        P2[Parse agent-flow events<br/>agent/skill id, tool, status, edits, completion]
+        MIN[Minimize + allow-list fields<br/>drop content/args/paths]
+        TIER[Task-tier classifier<br/>depth / tools / files / retries]
+        WASTE[Wastage calc<br/>actual x price - expected x recPrice]
+        IDEM[Idempotency key<br/>responseId + timestamp]
+        Q[Batch queue -> HTTPS POST<br/>bounded-backoff retry]
+        SCAN --> P1 --> MIN
+        SCAN --> P2 --> MIN
+        MIN --> TIER --> WASTE --> IDEM --> Q
+    end
+
+    subgraph Model["AWS Curated Data Model (append-only)"]
+        DU[dim_user]
+        DA[dim_agent]
+        DM[dim_model]
+        DT[dim_task_tier]
+        FL[fact_llm_request]
+        FF[fact_agent_flow_event]
+        FW[fact_token_wastage]
+        FAD[fact_adoption]
+        FB[fact_feedback]
+    end
+
+    Q --> FL & FF & FW & FAD
+    SURVEYP[Survey payload] --> FB
+
+    DU -.->|ACF2 ID| FL & FF & FW & FAD & FB
+    DA -.->|agent ID| FL & FF & FW & FAD & FB
+    DM -.->|model ID| FL & FW
+    DT -.->|tier ID| FW
+
+    subgraph Views["Aggregates & Serving"]
+        VAGG[Daily user/team/agent rollups]
+        VADO[Adoption + retention]
+        VELIG[Credit-eligibility scoring]
+        VUSER[Per-user coaching + top sessions]
+    end
+
+    FL & FF & FW & FAD & FB --> VAGG
+    FAD & FB --> VADO
+    FL & FW --> VELIG
+    FL & FW & FF --> VUSER
+</pre></div>
+
+<hr />
+
+<h2 id="datamodel">9. Data Model</h2>
+<div class="diagram"><pre class="mermaid">
+erDiagram
+    dim_user     ||--o{ fact_llm_request      : has
+    dim_user     ||--o{ fact_agent_flow_event : has
+    dim_user     ||--o{ fact_token_wastage    : has
+    dim_user     ||--o{ fact_adoption         : has
+    dim_user     ||--o{ fact_feedback         : has
+    dim_agent    ||--o{ fact_llm_request      : used_in
+    dim_agent    ||--o{ fact_agent_flow_event : used_in
+    dim_agent    ||--o{ fact_token_wastage    : used_in
+    dim_agent    ||--o{ fact_adoption         : used_in
+    dim_agent    ||--o{ fact_feedback         : used_in
+    dim_model    ||--o{ fact_llm_request      : priced_by
+    dim_model    ||--o{ fact_token_wastage    : priced_by
+    dim_task_tier ||--o{ fact_token_wastage   : classifies
+
+    dim_user {
+        string acf2_id PK
+        string user_name
+        string organization
+        string team
+        string role
+        string bg_division
+        string region
+        string consent_state
+        datetime opt_in_ts
+        string retention_class
+        date first_use_date
+        date last_active_date
+        date effective_date
+    }
+    dim_agent {
+        string agent_id PK
+        string agent_name
+        string skill_id
+        string skill_name
+        string category
+        string version
+    }
+    dim_model {
+        string model_id PK
+        string vendor
+        string tier
+        string category
+        int context_limit
+        decimal input_price
+        decimal cache_price
+        decimal output_price
+        date effective_date
+    }
+    dim_task_tier {
+        string tier_id PK
+        string label
+        string thresholds
+        string recommended_model_id
+        int expected_tokens_baseline
+        date effective_date
+    }
+    fact_llm_request {
+        string idempotency_key PK
+        string acf2_id FK
+        string session_id
+        string agent_id FK
+        string repo_classification
+        string model_id FK
+        datetime ts
+        int input_tokens
+        int cached_tokens
+        int output_tokens
+        int ttft
+        int dur
+        decimal estimated_cost
+    }
+    fact_agent_flow_event {
+        string idempotency_key PK
+        string acf2_id FK
+        string session_id
+        string agent_id FK
+        string request_corr_id
+        datetime ts
+        string event_category
+        string tool_name
+        string status
+        int duration
+        string retry_error_category
+        int edit_file_count
+        string validation_result
+        string completion_marker
+    }
+    fact_token_wastage {
+        string idempotency_key PK
+        string acf2_id FK
+        string session_id
+        string agent_id FK
+        string turn_corr_id
+        datetime ts
+        string tier_id FK
+        string actual_model_id
+        string recommended_model_id
+        int actual_tokens
+        int expected_tokens
+        decimal actual_cost
+        decimal expected_cost
+        int wasted_tokens
+        decimal wasted_cost
+        string provisioning_label
+    }
+    fact_adoption {
+        string acf2_id FK
+        string agent_id FK
+        date first_use_date
+        date last_active_date
+        int active_day_count
+        int session_count
+    }
+    fact_feedback {
+        string acf2_id FK
+        string agent_id FK
+        date survey_trigger_date
+        date response_date
+        int sentiment_score
+        int time_saved_minutes
+        string barrier_categories
+        string value_signals
+    }
+</pre></div>
+
+<hr />
+
+<h2 id="sequence">10. Ingestion Sequence</h2>
+<div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    participant U as Developer
+    participant VS as VS Code + Copilot
+    participant EXT as Extension
+    participant API as AWS Ingestion API
+    participant AWS as AWS Store
+
+    U->>VS: Uses Copilot agent/skill
+    VS->>VS: Writes main.jsonl + models.json
+    loop On file change / timer
+        EXT->>VS: Read from persisted byte offset
+        EXT->>EXT: Parse llm_request + agent-flow events
+        EXT->>EXT: Minimize (drop content/args/paths)
+        EXT->>EXT: Classify tier + compute wastage
+        EXT->>EXT: Build idempotency key (responseId+ts)
+        EXT->>API: POST batch (HTTPS, write-only cred)
+        alt Success
+            API->>AWS: Append (idempotent upsert)
+            API-->>EXT: 200 + persist offset
+        else Transient failure
+            API-->>EXT: 5xx
+            EXT->>EXT: Bounded-backoff retry (local queue)
+        end
+    end
+    Note over EXT: Flush on timer & shutdown. No DR fallback (POC).
+</pre></div>
+
+<hr />
+
+<h2 id="survey">11. Feedback Survey Flow</h2>
+<div class="diagram"><pre class="mermaid">
+flowchart TD
+    A[First use recorded per ACF2 ID + agent] --> B{Days since first use >= N?<br/>default 14}
+    B -- No --> B
+    B -- Yes --> C{Already responded?}
+    C -- Yes --> Z[Skip]
+    C -- No --> D[Show structured survey:<br/>sentiment / time saved / barriers / value signals]
+    D --> E{User responds?}
+    E -- Dismiss --> F[Re-prompt after cooldown]
+    E -- Submit --> G[Validate: structured fields only,<br/>no free-text code/secrets]
+    G --> H[Send to ingestion API]
+    H --> I[(fact_feedback keyed by<br/>ACF2 ID + agent + survey date)]
+    I --> J[Admin feedback dashboard<br/>joined to usage]
+</pre></div>
+
+<hr />
+
+<h2 id="consent">12. Consent &amp; Identity Lifecycle</h2>
+<div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --> NoticeShown: Extension installed
+    NoticeShown --> OptedOut: User declines
+    NoticeShown --> OptedIn: User consents
+    OptedIn --> Collecting: Consent recorded (ts, ACF2 ID)
+    Collecting --> Paused: User opts out
+    Paused --> Collecting: User re-consents
+    Collecting --> Withdrawn: Withdrawal request
+    Paused --> Withdrawn: Withdrawal request
+    Withdrawn --> Erased: Deletion/erasure by ACF2 ID
+    Erased --> [*]
+    OptedOut --> [*]
+
+    note right of Collecting
+        Org attributes refreshed from Teams on cadence.
+        Admin re-identification audited w/ business purpose.
+    end note
+</pre></div>
+
+<hr />
+
+<h2 id="dashboards">13. Dashboards</h2>
+<h3>13.1 Admin dashboard (administrator-only)</h3>
+<ul>
+  <li><strong>Global filters:</strong> Teams org hierarchy (org / team / role / BG / Division / region) and agent/skill — applied to every panel.</li>
+  <li><strong>Adoption &amp; feedback:</strong> active users, adoption/dormancy by team &amp; agent, first-use &amp; retention curves, feedback rollups (sentiment, time saved, top barriers) joined to usage.</li>
+  <li><strong>Cost &amp; efficiency:</strong> token/cost trend, cache efficiency, context-bloat patterns, model mix, savings opportunities, latency by model.</li>
+  <li><strong>Justification &amp; classification:</strong> justification distribution (drill-down to numeric evidence only), organizational vs <code>personal_or_unknown</code>.</li>
+  <li><strong>Agent-flow:</strong> request→tool→edit→validation→completion funnel, tool reliability, retry-loop and recovery trends.</li>
+  <li><strong>Token-wastage:</strong> wasted tokens/cost by tier, provisioning-label mix, top over-provisioned patterns.</li>
+  <li><strong>Credit-eligibility (per user):</strong> credit consumed/remaining, wastage rate, right-sized ratio, cache-hit rate, outcome rates, <code>effective_usage_score</code> → <code>eligible_for_additional_tokens</code> / <code>review_recommended</code> / <code>insufficient_evidence</code> with numeric evidence.</li>
+  <li><strong>Operational:</strong> data-quality panel + ingestion-health panel.</li>
+</ul>
+<h3>13.2 User dashboard (private, self-service)</h3>
+<ul>
+  <li>Personal token/credit usage, remaining budget, cache-hit rate, cost trend.</li>
+  <li>Top token-consuming sessions (tokens, model, tier, estimated wastage) — numeric evidence, never prompt content.</li>
+  <li>Prompt-pattern feedback (tier mix, tool usage, retry loops, high-input/low-output) framed as coaching.</li>
+  <li>Actionable, non-punitive suggestions (lower-cost/<code>Auto</code> when sufficient, reduce context bloat/cache misses, scope large sessions).</li>
+  <li>Personal effectiveness summary (right-sized ratio, wastage rate, completion rate) for self-assessment before requesting more tokens.</li>
+</ul>
+
+<hr />
+
+<h2 id="governance">14. Privacy, Governance &amp; Reporting Rules</h2>
+<ul>
+  <li><strong>Exclude by default:</strong> <code>content</code>, <code>response</code>, <code>userRequest</code>, raw tool arguments, file contents, source-code paths. Agent debug logs collect only an allow-listed set of event categories, statuses, timestamps, durations, counts.</li>
+  <li><strong>Pseudonymity &amp; access:</strong> prefer pseudonymous IDs and aggregate reporting; identifiable drill-down requires an authorized admin with a documented business purpose (audited).</li>
+  <li><strong>Consent lifecycle:</strong> opt-in/opt-out state + timestamp; consent before collection; withdrawal stops collection; erasure keyed by <code>ACF2 ID</code>; Teams org attributes refreshed on a defined cadence.</li>
+  <li><strong>Pre-rollout statements:</strong> retention, consent/notice, access control, regional/legal review; AWS workload-account owner, approved region, service choices, IAM roles, encryption-key ownership.</li>
+  <li><strong>Framing:</strong> separate model-selection coaching from employee-performance judgment; never infer intent, productivity, or personal use from prompts. Clearly distinguish <strong>observed telemetry</strong>, <strong>calculated estimates</strong>, and <strong>heuristic recommendations</strong>.</li>
+</ul>
+
+<hr />
+
+<h2 id="risks">15. Risks &amp; Open Questions</h2>
+<table>
+  <thead><tr><th>Item</th><th>Type</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td>Price drift over time</td><td>Risk</td><td>Consider stamping each fact with the <code>models.json</code> price version in effect at event time.</td></tr>
+    <tr><td>Debug-log format changes</td><td>Risk</td><td>Parser coverage is reported via data-quality panel; treat schema as implementation-dependent.</td></tr>
+    <tr><td>No DR fallback (POC)</td><td>Accepted risk</td><td>Events queued at process exit may be lost; acceptable for POC.</td></tr>
+    <tr><td>Tier→model mapping accuracy</td><td>Open</td><td>Thresholds are configurable heuristics; validate against sampled outcomes.</td></tr>
+    <tr><td>Governance sign-off</td><td>Open</td><td>Retention window, regional/legal review, and re-identification policy owners TBD.</td></tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="glossary">16. Glossary</h2>
+<table>
+  <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><strong>ACF2 ID</strong></td><td>Organization's unique user identifier; stable device/user key (1:1).</td></tr>
+    <tr><td><strong>Right-sized / over- / under-provisioned</strong></td><td>Whether the model used matched the task-complexity tier.</td></tr>
+    <tr><td><strong>Effective usage score</strong></td><td>Derived, privacy-safe score for token-award eligibility (not a performance rating).</td></tr>
+    <tr><td><strong>Personal_or_unknown</strong></td><td>Session whose Git remote is not on the org allow-list.</td></tr>
+  </tbody>
+</table>
+
+</main>
+</div>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default", securityLevel: "loose" });
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script>
+  window.addEventListener("load", function () {
+    document.querySelectorAll(".katex-render").forEach(function (el) {
+      try {
+        if (window.katex) {
+          window.katex.render(el.dataset.expr, el, { displayMode: true, throwOnError: false });
+        }
+      } catch (e) { el.textContent = el.dataset.expr; }
+    });
+  });
+</script>
+</body>
+</html>
